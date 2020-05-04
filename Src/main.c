@@ -69,6 +69,7 @@ static uint32_t Rx_value = 0;
 static uint32_t Tx_value = 0;
 static uint8_t Rx_clock_value ;
 static uint8_t Tx_clock_value ;
+uint32_t started =1;
 static uint16_t t_data =0;
 static uint32_t c_clock=0;
 int ft_flag=1;
@@ -169,6 +170,8 @@ void phy_Tx()
 	static uint32_t stop_bit=1;
 	static int firsttime=1;
 	static uint32_t place_in_frame=0;
+	if(firsttime)
+			HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,GPIO_PIN_SET);		
 	if(interface_tx_flag && firsttime)
 	{
 		HAL_TIM_Base_Start_IT(&htim3);
@@ -184,6 +187,7 @@ void phy_Tx()
 			case 0:  //start bit - send logic 0
 				HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,GPIO_PIN_RESET);
 				place_in_frame=1;
+				Tx_value=0;
 				break;
 			case 1: //sending 1
 				transfer = ((dll_to_phy_tx_bus) &	(shifter));
@@ -191,6 +195,7 @@ void phy_Tx()
 				{
 					place_in_frame=2;
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,parity_tx);
+					Tx_value=parity_tx;
 				}
 				else if (transfer == shifter)
 				{
@@ -201,7 +206,7 @@ void phy_Tx()
 				else
 				{
 					HAL_GPIO_WritePin (phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_RESET); // inserts zero to data 
-					Tx_value =0;
+					Tx_value =0;					
 				}
 				shifter = shifter*2;
 				break;
@@ -210,11 +215,19 @@ void phy_Tx()
 				{
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_SET);
 					stop_bit=2;
+					Tx_value=1;
+					
 				}
-				if(stop_bit==2)
+				else if(stop_bit ==2)
 				{
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_SET);
-					stop_bit=0;
+					stop_bit=3;					
+					Tx_value=1;
+				
+				}
+			 else if(stop_bit==3)
+				{
+					stop_bit=1;
 					HAL_TIM_Base_Stop_IT(&htim3);
 					HAL_GPIO_WritePin(phy_tx_busy_GPIO_Port,phy_tx_busy_Pin,GPIO_PIN_RESET);
 					phy_tx_busy=0;
@@ -222,6 +235,7 @@ void phy_Tx()
 					firsttime =1;
 					shifter =1;
 					transfer =0;
+					HAL_GPIO_WritePin(tim3_out_GPIO_Port,tim3_out_Pin,GPIO_PIN_RESET);
 				}
 				break;
 		}
@@ -231,12 +245,19 @@ void phy_Tx()
 void phy_Rx()
 {
 	rx_current = HAL_GPIO_ReadPin(phy_rx_data_GPIO_Port,phy_rx_data_Pin);
-	if(rx_current!=rx_befcurrent)
+	if(rx_current!=rx_befcurrent&&started)
 	{
 		HAL_TIM_Base_Start_IT(&htim4);
+		started=0;
+	}
+	if(stop_tim_flag)
+	{
+		HAL_TIM_Base_Stop_IT(&htim4);
+		started=1;
+		stop_tim_flag=0;
 	}
 	
-	
+	rx_befcurrent = rx_current;
 	
 }
 
@@ -291,7 +312,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		
 		phy_layer();	
 		interface();
 		sampleClocks();
@@ -376,9 +396,9 @@ static void MX_TIM2_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 4999;
+  htim2.Init.Prescaler = 124;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1;
+  htim2.Init.Period = 40;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -409,9 +429,9 @@ static void MX_TIM3_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 4999;
+  htim3.Init.Prescaler = 124;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1;
+  htim3.Init.Period = 40;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -442,7 +462,7 @@ static void MX_TIM4_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 1249;
+  htim4.Init.Prescaler = 124;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 1;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

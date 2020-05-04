@@ -39,11 +39,15 @@
 extern uint32_t tempi2 ;
 extern uint32_t clock;
 static uint32_t samples[3]={0};
-uint32_t s_counter=1;
+static uint32_t s_counter=1;
 uint32_t parity_rx=0;
 extern uint32_t stop_tim_flag;
 extern uint8_t interface_rx_flag;
 extern uint32_t phy_to_dll_rx_bus;
+extern uint32_t started;
+static uint32_t hand_val=1;
+static uint32_t for_check=3;
+static uint32_t new_data=0;
 
 
 /* USER CODE END 0 */
@@ -249,17 +253,141 @@ void TIM4_IRQHandler(void)
   /* USER CODE END TIM4_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
   /* USER CODE BEGIN TIM4_IRQn 1 */
-	if (reciving_state==0)
-	{	
-		first_bit++;
+	
+	
+	first_bit++;
+	if(first_bit == 40)
+	{
+		first_bit=0;
 	}
+	else if (first_bit>=20 && first_bit <=22)
+	{
+		samples[waiting] = HAL_GPIO_ReadPin(phy_rx_data_GPIO_Port, phy_rx_data_Pin);
+		waiting++;
+		if (waiting ==3)
+		{
+			waiting=0;
+			summer = samples[0]+samples[1]+samples[2];
+			if (summer>=2)
+			{
+				hand_val=1;
+			}
+			else			
+			{
+				hand_val=0;
+			}
+			switch(reciving_state)
+			{
+				case 0:
+					if(hand_val == 0)
+					{
+						reciving_state=1;
+						tempi2=0;
+						s_counter=1;
+						new_data=0;
+					}
+					break;
+				case 1:
+						
+					if (hand_val==1)
+					{
+						tempi2 += s_counter;
+						new_rx_parity = 1- new_rx_parity;
+						hand_val=1;
+						s_counter*=2;
+						new_data=1;
+					}
+					else
+					{
+						s_counter*=2;
+						new_data=0;
+					}
+					if(s_counter>128)
+					{
+						reciving_state=2;
+					}
+						break;
+				case 2:
+					if (new_rx_parity == hand_val)
+					{
+						reciving_state=3;
+						new_data=hand_val;	
+					}	
+					else
+					{
+						reciving_state =4;
+					
+						//error state
+					}
+						break;
+				case 3:
+					if(hand_val==1)	
+					{
+						stopbits++;
+						new_data=1;
+					}
+					else if(hand_val==0)
+					{
+						reciving_state=4;
+						//eror
+					}
+					if(stopbits==2)
+					{
+						new_data=1;
+						phy_to_dll_rx_bus = tempi2;
+						tempi2=0;
+						reciving_state=0;		
+						s_counter =1;
+						interface_rx_flag=1;
+						stop_tim_flag=1;
+						started=0;
+						waiting=0;
+						first_bit=0;
+						stopbits=0;		
+						
+					}
+						break;
+				case 4:
+					if(s_counter <= 128)
+						s_counter*=2;
+					else if (stopbits < 3) 
+					{
+						stopbits++;
+					}
+					else
+					{
+						tempi2=0;
+						reciving_state=0;		
+						s_counter =1;
+						stop_tim_flag=1;
+						started=0;
+						waiting=0;
+						first_bit=0;
+						stopbits=0;
+						
+					}
+			}
+			
+		}
+		
+		
+		
+		
+	}
+	
+	
+/*	
+	//for_check =HAL_GPIO_ReadPin(phy_rx_data_GPIO_Port, phy_rx_data_Pin);
+	
+		first_bit++;
 	switch (reciving_state)
 	{
 		case 0: // start bit
-		if (first_bit == 4 )
+		if (first_bit == 20 )
 		{
 			reciving_state=1;
 			first_bit=0;
+			hand_val =1;
 		}
 			break;
 		case 1: //recieving data
@@ -293,10 +421,12 @@ void TIM4_IRQHandler(void)
 					tempi2 += s_counter;
 					s_counter = s_counter*2;
 					new_rx_parity = 1- new_rx_parity;
+					hand_val=1;
 				}
 				else
 				{
 					s_counter*=2;
+					hand_val=0;
 				}
 				bits_counter++;
 				reciving_state = 1;
@@ -315,11 +445,11 @@ void TIM4_IRQHandler(void)
 			}				
 			else
 			{
-				while(1){}
 				// eror
-				reciving_state =0;	
+				//reciving_state =0;	
 			}
 			waiting=0;
+			hand_val=parity_rx;
 				break;
 		case 4:
 			summer = samples[0]+samples[1]+samples[2];
@@ -327,34 +457,38 @@ void TIM4_IRQHandler(void)
 			{
 				stop_bit=1;
 				stopbits++;
-				reciving_state = 1;				
+				reciving_state = 1;
+				hand_val=1;		
 			}
 			else
 			{
+				//while(1){}
 				stop_bit=0;
 			//eror
-				reciving_state =0;				
+		//		reciving_state =0;				
 			}
 			if (stopbits == 2)
 			{
+				hand_val=1;
 				phy_to_dll_rx_bus =tempi2;
 				interface_rx_flag=1;
 				stop_tim_flag=1;
 				bits_counter=0;
 				tempi2=0;
+				started=0;
 				s_counter=1;
-				reciving_state =0;				
-
+				reciving_state =0;
+				stopbits=0;
+				first_bit=0;
 				
-				//good
+				//gootan morgan
 			}
 			waiting=0;
 			 break;
 			
 			
 	}
-	
-
+	*/
   /* USER CODE END TIM4_IRQn 1 */
 }
 

@@ -21,13 +21,28 @@ Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.7.0
 Dialog DLL:      TCM.DLL V1.36.5.0
  
 <h2>Project:</h2>
-C:\Users\Raz\Desktop\lab4\MDK-ARM\lab4ro.uvprojx
-Project File Date:  05/03/2020
+C:\Users\Raz\Desktop\lab4\lab4\MDK-ARM\lab4ro.uvprojx
+Project File Date:  05/04/2020
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 6 (build 750)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'lab4ro'
-"lab4ro\lab4ro.axf" - 0 Error(s), 0 Warning(s).
+compiling stm32f1xx_it.c...
+../Src/stm32f1xx_it.c(245): warning:  #177-D: variable "skipi"  was declared but never referenced
+  	static int skipi=0;
+../Src/stm32f1xx_it.c(249): warning:  #177-D: variable "bits_counter"  was declared but never referenced
+  	static int bits_counter=0;
+../Src/stm32f1xx_it.c(252): warning:  #177-D: variable "stop_bit"  was declared but never referenced
+  	static uint32_t stop_bit = 0;
+../Src/stm32f1xx_it.c(49): warning:  #177-D: variable "for_check"  was declared but never referenced
+  static uint32_t for_check=3;
+../Src/stm32f1xx_it.c(50): warning:  #550-D: variable "new_data"  was set but never used
+  static uint32_t new_data=0;
+../Src/stm32f1xx_it.c: 5 warnings, 0 errors
+linking...
+Program Size: Code=5224 RO-data=284 RW-data=140 ZI-data=1228  
+FromELF: creating hex file...
+"lab4ro\lab4ro.axf" - 0 Error(s), 5 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -50,7 +65,7 @@ Package Vendor: Keil
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.3.0
-Build Time Elapsed:  00:00:00
+Build Time Elapsed:  00:00:03
 </pre>
 </body>
 </html>
