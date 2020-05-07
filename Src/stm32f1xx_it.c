@@ -48,6 +48,8 @@ extern uint32_t started;
 static uint32_t hand_val=1;
 static uint32_t for_check=3;
 static uint32_t new_data=0;
+static uint32_t x =0;
+static uint32_t stopbits=0;
 
 
 /* USER CODE END 0 */
@@ -248,7 +250,6 @@ void TIM4_IRQHandler(void)
 	static int summer=0;
 	static int bits_counter=0;
 	static uint32_t new_rx_parity=0;
-	static uint32_t stopbits=0;
 	static uint32_t stop_bit = 0;
   /* USER CODE END TIM4_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
@@ -260,7 +261,7 @@ void TIM4_IRQHandler(void)
 	{
 		first_bit=0;
 	}
-	else if (first_bit>=20 && first_bit <=22)
+	else if (first_bit>=19 && first_bit <=21)
 	{
 		samples[waiting] = HAL_GPIO_ReadPin(phy_rx_data_GPIO_Port, phy_rx_data_Pin);
 		waiting++;
@@ -293,7 +294,6 @@ void TIM4_IRQHandler(void)
 					{
 						tempi2 += s_counter;
 						new_rx_parity = 1- new_rx_parity;
-						hand_val=1;
 						s_counter*=2;
 						new_data=1;
 					}
@@ -311,14 +311,14 @@ void TIM4_IRQHandler(void)
 					if (new_rx_parity == hand_val)
 					{
 						reciving_state=3;
-						new_data=hand_val;	
+						new_data=hand_val;
 					}	
 					else
 					{
 						reciving_state =4;
-					
 						//error state
 					}
+					x=hand_val;
 						break;
 				case 3:
 					if(hand_val==1)	
@@ -326,7 +326,7 @@ void TIM4_IRQHandler(void)
 						stopbits++;
 						new_data=1;
 					}
-					else if(hand_val==0)
+					else if(hand_val==0&& stopbits<2)
 					{
 						reciving_state=4;
 						//eror
@@ -344,7 +344,8 @@ void TIM4_IRQHandler(void)
 						waiting=0;
 						first_bit=0;
 						stopbits=0;		
-						
+						new_rx_parity=0;
+						hand_val=1;
 					}
 						break;
 				case 4:
@@ -364,7 +365,8 @@ void TIM4_IRQHandler(void)
 						waiting=0;
 						first_bit=0;
 						stopbits=0;
-						
+						new_rx_parity=0;
+						hand_val=1;
 					}
 			}
 			

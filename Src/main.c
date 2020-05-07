@@ -87,6 +87,8 @@ uint32_t stop_tim_flag =0;
 uint32_t clock = 0;
 uint32_t rx_current=1;
 uint32_t rx_befcurrent=1;
+static uint16_t shifter =1; // for the masking in order to iso the bit
+static uint8_t transfer = 0; // var to the masked bit 
 //int samples =0;
 //char all_samples[5] = {0};
 //char its_for_1samp ;
@@ -164,8 +166,7 @@ void sampleClocks()
 void phy_Tx()
 {
 	
-	static uint16_t shifter =1; // for the masking in order to iso the bit
-	static uint8_t transfer = 0; // var to the masked bit 
+
 	static uint32_t start_bit=1;
 	static uint32_t stop_bit=1;
 	static int firsttime=1;
@@ -195,7 +196,11 @@ void phy_Tx()
 				{
 					place_in_frame=2;
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,parity_tx);
-					Tx_value=parity_tx;
+					if (parity_tx)
+						Tx_value=3;
+					else
+						Tx_value=2;
+					
 				}
 				else if (transfer == shifter)
 				{
@@ -234,6 +239,7 @@ void phy_Tx()
 					place_in_frame =0;
 					firsttime =1;
 					shifter =1;
+					parity_tx=0;
 					transfer =0;
 					HAL_GPIO_WritePin(tim3_out_GPIO_Port,tim3_out_Pin,GPIO_PIN_RESET);
 				}
