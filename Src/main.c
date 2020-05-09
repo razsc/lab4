@@ -62,15 +62,8 @@ uint32_t dll_to_phy_tx_bus = 0; // saves the original data we want to transfer t
 uint8_t dll_to_phy_tx_bus_valid = 0; // checks if theres data allready transferd from the dll to the [hy layer
 
 uint8_t phy_tx_busy = 0; // checks if there is data being transmited at the moment.
-static uint8_t pr_clock_val=0;
 static uint32_t parity_tx=0;
-static uint8_t p_clock_val = 0; 
-static uint32_t Rx_value = 0;
-static uint32_t Tx_value = 0;
-static uint8_t Rx_clock_value ;
-static uint8_t Tx_clock_value ;
 uint32_t started =1;
-static uint16_t t_data =0;
 static uint32_t c_clock=0;
 int ft_flag=1;
 static uint32_t prv_clock=0;
@@ -80,15 +73,13 @@ uint8_t interface_tx_flag=0;
 uint8_t interface_rx_flag=0;
 static uint32_t *GPIOA_IDR_Pointer = (uint32_t*)GPIOA_IDR;
 static uint32_t *GPIOB_ODR_Pointer = (uint32_t*)GPIOB_ODR;
-static uint16_t odr_temp=0;
-static uint32_t tempi = 0;
 uint32_t tempi2 = 0;
 uint32_t stop_tim_flag =0;
 uint32_t clock = 0;
 uint32_t rx_current=1;
 uint32_t rx_befcurrent=1;
 static uint16_t shifter =1; // for the masking in order to iso the bit
-static uint8_t transfer = 0; // var to the masked bit 
+static uint16_t transfer = 0; // var to the masked bit 
 //int samples =0;
 //char all_samples[5] = {0};
 //char its_for_1samp ;
@@ -119,8 +110,6 @@ static void MX_NVIC_Init(void);
 		ft_flag=0;
 		prv_clock=0;
 	}
-	c_clock=HAL_GPIO_ReadPin(interface_clock_GPIO_Port, interface_clock_Pin); //move into the if and seprate them
-	dll_to_phy_tx_bus_valid=HAL_GPIO_ReadPin(dll_to_phy_tx_bus_valid_GPIO_Port, dll_to_phy_tx_bus_valid_Pin);
 	if(!c_clock&&prv_clock&&dll_to_phy_tx_bus_valid)
 	{
 		dll_to_phy_tx_bus=(*GPIOA_IDR_Pointer & 255);
@@ -133,7 +122,6 @@ static void MX_NVIC_Init(void);
 				HAL_GPIO_WritePin(phy_alive_GPIO_Port, phy_alive_Pin,GPIO_PIN_SET);
 				ft2_flag=0;
 			}
-			phy_to_dll_rx_bus_valid=HAL_GPIO_ReadPin(phy_to_dll_rx_bus_valid_GPIO_Port, phy_to_dll_rx_bus_valid_Pin); //flag
 			if (phy_to_dll_rx_bus_valid)
 			{
 				HAL_GPIO_WritePin(phy_to_dll_rx_bus_valid_GPIO_Port, phy_to_dll_rx_bus_valid_Pin,GPIO_PIN_RESET);
@@ -166,8 +154,6 @@ void sampleClocks()
 void phy_Tx()
 {
 	
-
-	static uint32_t start_bit=1;
 	static uint32_t stop_bit=1;
 	static int firsttime=1;
 	static uint32_t place_in_frame=0;
@@ -177,7 +163,6 @@ void phy_Tx()
 	{
 		HAL_TIM_Base_Start_IT(&htim3);
 		HAL_GPIO_WritePin(phy_tx_busy_GPIO_Port,phy_tx_busy_Pin,GPIO_PIN_SET);
-		phy_tx_busy=1;
 		interface_tx_flag=0;
 		firsttime=0;
 	}
@@ -188,7 +173,6 @@ void phy_Tx()
 			case 0:  //start bit - send logic 0
 				HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,GPIO_PIN_RESET);
 				place_in_frame=1;
-				Tx_value=0;
 				break;
 			case 1: //sending 1
 				transfer = ((dll_to_phy_tx_bus) &	(shifter));
@@ -196,22 +180,16 @@ void phy_Tx()
 				{
 					place_in_frame=2;
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port,phy_tx_data_Pin,parity_tx);
-					if (parity_tx)
-						Tx_value=3;
-					else
-						Tx_value=2;
 					
 				}
 				else if (transfer == shifter)
 				{
 					HAL_GPIO_WritePin (phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_SET);	//inserts one to the data
-					Tx_value =1;
 					parity_tx=1-parity_tx;
 				}
 				else
 				{
-					HAL_GPIO_WritePin (phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_RESET); // inserts zero to data 
-					Tx_value =0;					
+					HAL_GPIO_WritePin (phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_RESET); // inserts zero to data 					
 				}
 				shifter = shifter*2;
 				break;
@@ -220,14 +198,12 @@ void phy_Tx()
 				{
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_SET);
 					stop_bit=2;
-					Tx_value=1;
 					
 				}
 				else if(stop_bit ==2)
 				{
 					HAL_GPIO_WritePin(phy_tx_data_GPIO_Port, phy_tx_data_Pin, GPIO_PIN_SET);
 					stop_bit=3;					
-					Tx_value=1;
 				
 				}
 			 else if(stop_bit==3)
@@ -235,7 +211,6 @@ void phy_Tx()
 					stop_bit=1;
 					HAL_TIM_Base_Stop_IT(&htim3);
 					HAL_GPIO_WritePin(phy_tx_busy_GPIO_Port,phy_tx_busy_Pin,GPIO_PIN_RESET);
-					phy_tx_busy=0;
 					place_in_frame =0;
 					firsttime =1;
 					shifter =1;
@@ -358,7 +333,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV16;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
@@ -404,9 +379,9 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 124;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 40;
+  htim2.Init.Period = 159;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -437,9 +412,9 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 124;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 40;
+  htim3.Init.Period = 79;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -470,9 +445,9 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 124;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 1;
+  htim4.Init.Period = 3;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
